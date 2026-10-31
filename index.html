@@ -66,9 +66,137 @@
       <label class="field">Fecha<input class="input" id="f-date" name="date" type="date"></label>
       <label class="field">Nota (opcional)<input class="input" id="f-note" name="note" type="text" maxlength="120" placeholder="Ej. Supermercado"></label>
     </div>
+    <label class="field"><span id="f-acc-label">Pagado con</span><select class="select" id="f-acc"></select></label>
     <div class="form-error" id="f-error" role="alert"></div>
     <button class="btn primary block" type="submit">Guardar</button>
     <button class="btn danger block" type="button" id="f-delete" data-action="delete-tx" hidden>Eliminar movimiento</button>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="cat-sheet" aria-labelledby="cat-title">
+  <form id="cat-form" method="dialog" novalidate>
+    <div class="sheet-head">
+      <h2 id="cat-title">Nueva categoría</h2>
+      <button class="icon-btn" type="button" data-action="close-cat" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <label class="field">Nombre<input class="input" id="c-name" type="text" maxlength="24" autocomplete="off" placeholder="Ej. Educación"></label>
+    <fieldset class="color-grid" id="c-colors"><legend>Color</legend></fieldset>
+    <div class="form-error" id="c-error" role="alert"></div>
+    <button class="btn primary block" type="submit">Guardar</button>
+    <button class="btn danger block" type="button" id="c-delete" data-action="delete-cat" hidden>Eliminar categoría</button>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="account-sheet" aria-labelledby="account-title">
+  <form id="account-form" method="dialog" novalidate>
+    <div class="sheet-head">
+      <h2 id="account-title">Nueva cuenta</h2>
+      <button class="icon-btn" type="button" data-action="close-account" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="seg" role="radiogroup" aria-label="Tipo" id="a-kind-row">
+      <label><input type="radio" name="akind" value="cuenta" checked><span>Cuenta</span></label>
+      <label><input type="radio" name="akind" value="tarjeta"><span>Tarjeta de crédito</span></label>
+    </div>
+    <label class="field">Nombre<input class="input" id="a-name" type="text" maxlength="40" autocomplete="off" placeholder="Ej. BCP Ahorros"></label>
+    <label class="field" id="a-balance-row">Saldo actual
+      <span class="money big"><span class="cur cur-dyn">S/</span><input class="input amount-input" id="a-balance" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span>
+    </label>
+    <label class="field" id="a-debt-row">Deuda actual (lo que debes hoy)
+      <span class="money big"><span class="cur cur-dyn">S/</span><input class="input amount-input" id="a-debt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span>
+    </label>
+    <label class="field" id="a-limit-row">Línea de crédito (opcional)
+      <span class="money"><span class="cur cur-dyn">S/</span><input class="input" id="a-limit" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej. 5000"></span>
+    </label>
+    <div class="row2" id="a-days-row">
+      <label class="field">Día de cierre<input class="input" id="a-close" type="text" inputmode="numeric" maxlength="2" placeholder="Ej. 20"></label>
+      <label class="field">Día de pago<input class="input" id="a-payday" type="text" inputmode="numeric" maxlength="2" placeholder="Ej. 15"></label>
+    </div>
+    <div class="pay-box" id="a-pay">
+      <div class="group-label" style="margin-top:0">Pagar la tarjeta</div>
+      <div class="row2">
+        <label class="field">Monto<span class="money"><span class="cur cur-dyn">S/</span><input class="input" id="p-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
+        <label class="field">Desde<select class="select" id="p-from"></select></label>
+      </div>
+      <button class="btn block" type="button" data-action="pay-card">Registrar pago</button>
+    </div>
+    <div class="form-error" id="a-error" role="alert"></div>
+    <button class="btn primary block" type="submit">Guardar</button>
+    <button class="btn danger block" type="button" id="a-delete" data-action="delete-account" hidden>Eliminar cuenta</button>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="fixed-sheet" aria-labelledby="fixed-title">
+  <form id="fixed-form" method="dialog" novalidate>
+    <div class="sheet-head">
+      <h2 id="fixed-title">Nuevo fijo mensual</h2>
+      <button class="icon-btn" type="button" data-action="close-fixed" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="seg" role="radiogroup" aria-label="Tipo">
+      <label><input type="radio" name="xtype" value="gasto" checked><span>Gasto</span></label>
+      <label><input type="radio" name="xtype" value="ingreso"><span>Ingreso</span></label>
+    </div>
+    <label class="field">Nombre<input class="input" id="x-name" type="text" maxlength="60" autocomplete="off" placeholder="Ej. Alquiler, Netflix, Sueldo"></label>
+    <div class="row2">
+      <label class="field">Monto<span class="money"><span class="cur cur-dyn">S/</span><input class="input" id="x-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
+      <label class="field">Día del mes<input class="input" id="x-day" type="text" inputmode="numeric" maxlength="2" placeholder="1 a 31"></label>
+    </div>
+    <label class="field" id="x-cat-row">Categoría<select class="select" id="x-cat"></select></label>
+    <label class="field" id="x-acc-row"><span id="x-acc-label">Pagado con</span><select class="select" id="x-acc"></select></label>
+    <div class="form-error" id="x-error" role="alert"></div>
+    <button class="btn primary block" type="submit">Guardar</button>
+    <button class="btn danger block" type="button" id="x-delete" data-action="delete-fixed" hidden>Eliminar fijo</button>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="goal-sheet" aria-labelledby="goal-title">
+  <form id="goal-form" method="dialog" novalidate>
+    <div class="sheet-head">
+      <h2 id="goal-title">Nueva meta</h2>
+      <button class="icon-btn" type="button" data-action="close-goal" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <label class="field">Nombre<input class="input" id="g-name" type="text" maxlength="60" autocomplete="off" placeholder="Ej. Fondo de emergencia"></label>
+    <div class="row2">
+      <label class="field">Meta<span class="money"><span class="cur cur-dyn">S/</span><input class="input" id="g-target" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
+      <label class="field">Ya ahorrado<span class="money"><span class="cur cur-dyn">S/</span><input class="input" id="g-saved" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
+    </div>
+    <label class="field">Fecha objetivo (opcional)<input class="input" id="g-deadline" type="month"></label>
+    <div class="pay-box" id="g-add-box">
+      <div class="group-label" style="margin-top:0">Sumar un abono</div>
+      <div class="row2">
+        <span class="money"><span class="cur cur-dyn">S/</span><input class="input" id="g-add" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-label="Monto del abono"></span>
+        <button class="btn" type="button" data-action="goal-add">Sumar</button>
+      </div>
+    </div>
+    <div class="form-error" id="g-error" role="alert"></div>
+    <button class="btn primary block" type="submit">Guardar</button>
+    <button class="btn danger block" type="button" id="g-delete" data-action="delete-goal" hidden>Eliminar meta</button>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="loan-sheet" aria-labelledby="loan-title">
+  <form id="loan-form" method="dialog" novalidate>
+    <div class="sheet-head">
+      <h2 id="loan-title">Nuevo préstamo</h2>
+      <button class="icon-btn" type="button" data-action="close-loan" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <label class="field">Monto total
+      <span class="money big"><span class="cur" id="loan-cur">S/</span><input class="input amount-input" id="l-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span>
+    </label>
+    <label class="field">Descripción<input class="input" id="l-desc" type="text" maxlength="80" autocomplete="off" placeholder="Ej. Préstamo a Carlos"></label>
+    <label class="check" id="l-paid-row" hidden><input type="checkbox" id="l-paid">Ya me lo devolvieron</label>
+    <div class="form-error" id="l-error" role="alert"></div>
+    <button class="btn primary block" type="submit">Guardar</button>
+    <button class="btn danger block" type="button" id="l-delete" data-action="delete-loan" hidden>Eliminar préstamo</button>
   </form>
 </dialog>
 

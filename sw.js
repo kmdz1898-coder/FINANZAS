@@ -1,5 +1,5 @@
 // Guarda la app en el teléfono para que abra sin internet.
-const CACHE = 'finanzas-v1';
+const CACHE = 'finanzas-v6';
 const ASSETS = [
   './',
   'index.html',
