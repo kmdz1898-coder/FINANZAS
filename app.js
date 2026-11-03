@@ -25,7 +25,7 @@ const COLOR_CHOICES = [
 function cats() {
   return BASE_CATS.filter((c) => c.id !== 'otr').concat(db.cats || [], BASE_CATS.filter((c) => c.id === 'otr'));
 }
-const SERIES = { inc: { light: '#2a78d6', dark: '#3987e5' }, exp: { light: '#eb6834', dark: '#d95926' } };
+const SERIES = { inc: { light: '#2e9e4a', dark: '#4cc26b' }, exp: { light: '#e8452c', dark: '#ff6a4f' } };
 const STATUS_LABEL = { none: 'Sin tope', good: 'En rango', warn: 'Cerca del tope', crit: 'Excedido' };
 const ICON = {
   left: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>',
@@ -346,7 +346,7 @@ function renderInicio() {
       : exceeded ? '<div class="dl bad">' + exceeded + (exceeded === 1 ? ' categoría excedida' : ' categorías excedidas') + '</div>'
         : '<div class="dl good">Todas dentro del tope</div>', true);
   html += '</div>';
-  html += renderAccounts() + renderTrendChart(key) + renderDonut(key, st) + renderCumChart(key, rows) + renderGoals() + renderLoans();
+  html += renderAccounts() + renderCardUsage() + renderTrendChart(key) + renderDonut(key, st) + renderCumChart(key, rows) + renderProjection(key, st, rows) + renderWeeks(key) + renderRing(key, st) + renderCapBars(rows) + renderSmallSpend(key, st) + renderGoals() + renderLoans();
   html += '</div>';
   return html;
 }
@@ -487,6 +487,139 @@ function renderCumChart(key, capRowsWith) {
     '<line class="cross" x1="0" x2="0" y1="' + T + '" y2="' + base + '"></line>' +
     '<circle class="hdot" r="5" fill="' + c1 + '" stroke="var(--surface)" stroke-width="2"></circle>' +
     '</svg></div></section>';
+}
+
+// Proyección del gasto del mes actual: lo gastado + fijos pendientes + ritmo diario de los gastos variables.
+function renderProjection(key, st, rows) {
+  if (key !== currentMonth()) return '';
+  const elapsed = Number(todayISO().slice(8, 10));
+  const remaining = daysIn(key) - elapsed;
+  const fixedPaid = db.txs.filter((t) => t.type === 'gasto' && t.fixedId && t.date.slice(0, 7) === key).reduce((a, t) => a + t.amount, 0);
+  const fixedPending = db.fixed.filter((f) => f.type === 'gasto' && !fixedStatus(f, key).done).reduce((a, f) => a + f.amount, 0);
+  const daily = (st.exp - fixedPaid) / elapsed;
+  const restVar = daily * remaining;
+  const proj = st.exp + fixedPending + restVar;
+  const hasCap = rows.length > 0;
+  const capTotal = rows.reduce((a, r) => a + r.cap, 0);
+  const max = Math.max(proj, hasCap ? capTotal : 0, 1);
+  const w = (v) => ((v / max) * 100).toFixed(2) + '%';
+  const over = hasCap && proj > capTotal;
+  const diff = Math.abs(proj - capTotal);
+  const verdict = !hasCap ? '<div class="dl muted">Define topes en la pestaña Topes para comparar</div>'
+    : over ? '<div class="dl bad">Superaría los topes por ' + fmt(diff) + '</div>'
+      : '<div class="dl good">Dentro de los topes, con ' + fmt(diff) + ' de holgura</div>';
+  const saving = st.inc > 0 ? '<div class="dl ' + (st.inc - proj >= 0 ? 'good' : 'bad') + '">Ahorro proyectado ' + fmt(st.inc - proj) + '</div>' : '';
+  return '<section class="card wide" aria-label="Proyección del gasto del mes"><div class="card-head"><div><h2>Proyección del gasto</h2>' +
+    '<div class="sub">Gastado ' + fmt(st.exp) + ' + fijos pendientes ' + fmt(fixedPending) + ' + ritmo de ' + fmt(daily) + ' por día × ' + remaining + (remaining === 1 ? ' día' : ' días') + '</div></div></div>' +
+    '<div class="kpi-value">' + fmt(proj) + '</div>' +
+    '<div class="proj-track" role="img" aria-label="Gastado, proyectado y topes">' +
+    '<span style="width:' + w(st.exp) + ';background:var(--grad)"></span>' +
+    '<span style="width:' + w(fixedPending) + ';background:var(--accent);opacity:.55"></span>' +
+    '<span style="width:' + w(restVar) + ';background:var(--accent);opacity:.25"></span>' +
+    (hasCap ? '<i class="proj-cap" style="left:' + w(capTotal) + '"></i>' : '') + '</div>' +
+    '<div class="legend" style="margin-top:8px"><span><i style="background:var(--grad)"></i>Gastado</span><span><i style="background:var(--accent);opacity:.55"></i>Fijos pendientes</span><span><i style="background:var(--accent);opacity:.25"></i>Ritmo restante</span>' + (hasCap ? '<span><i class="dash"></i>Topes ' + fmt(capTotal) + '</span>' : '') + '</div>' +
+    verdict + saving + '</section>';
+}
+
+// Gasto por semana del mes: barras por bloque de 7 días.
+function renderWeeks(key) {
+  const days = daysIn(key);
+  const daily = new Array(days).fill(0);
+  for (const t of db.txs) if (t.type === 'gasto' && t.date.slice(0, 7) === key) daily[Number(t.date.slice(8, 10)) - 1] += t.amount;
+  const ranges = [[1, 7], [8, 14], [15, 21], [22, days]];
+  const vals = ranges.map(([a, b]) => { let s = 0; for (let d = a; d <= b; d++) s += daily[d - 1]; return s; });
+  const W = chartWidth(), H = 190, L = 12, R = 12, T = 26, B = 28;
+  const pw = W - L - R, ph = H - T - B, base = T + ph;
+  const ymax = niceCeil(Math.max(1, ...vals) * 1.15);
+  const slot = pw / ranges.length, bw = Math.min(64, slot * 0.56);
+  const c = col(SERIES.exp);
+  let g = '';
+  ranges.forEach(([a, b], i) => {
+    const v = vals[i], h = (v / ymax) * ph;
+    const x = L + i * slot + (slot - bw) / 2, cx = (x + bw / 2).toFixed(1), y = (base - h).toFixed(1);
+    g += '<rect x="' + x.toFixed(1) + '" y="' + y + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="8" fill="' + c + '" opacity="' + (v ? 1 : 0.18) + '"></rect>' +
+      '<text x="' + cx + '" y="' + (base - h - 6).toFixed(1) + '" text-anchor="middle" style="font-size:12px;font-weight:650;fill:var(--ink);font-variant-numeric:tabular-nums">' + (v ? kfmt(v) : '0') + '</text>' +
+      '<text class="xl" x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle">' + (a === b ? a : a + '–' + b) + '</text>';
+  });
+  const top = vals.indexOf(Math.max(...vals));
+  const topLabel = ranges[top][0] + '–' + ranges[top][1];
+  return '<section class="card" aria-label="Gasto por semana"><div class="card-head"><div><h2>Gasto por semana</h2>' +
+    '<div class="sub">' + (Math.max(...vals) ? 'Semana más alta: días ' + topLabel + ' · ' + fmt(vals[top]) : 'Aún no hay gastos este mes') + '</div></div></div>' +
+    '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Gasto por semana del mes">' +
+    '<line class="gl" x1="' + L + '" x2="' + (W - R) + '" y1="' + base + '" y2="' + base + '"></line>' + g + '</svg></div></section>';
+}
+
+// Tasa de ahorro en anillo: qué parte de tus ingresos te queda.
+function renderRing(key, st) {
+  const sav = st.inc - st.exp;
+  const hasInc = st.inc > 0;
+  const rate = hasInc ? Math.max(0, Math.min(100, (sav / st.inc) * 100)) : 0;
+  const r = 62, C = 2 * Math.PI * r;
+  const ring = '<svg viewBox="0 0 160 160" role="img" aria-label="Tasa de ahorro ' + rate.toFixed(0) + '%">' +
+    '<defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"></stop><stop offset="1" style="stop-color:var(--accent-2)"></stop></linearGradient></defs>' +
+    '<circle cx="80" cy="80" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="18"></circle>' +
+    (rate > 0 ? '<circle cx="80" cy="80" r="' + r + '" fill="none" stroke="url(#ring-grad)" stroke-width="18" stroke-linecap="round" stroke-dasharray="' + (C * rate / 100).toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 80 80)"></circle>' : '') +
+    '<text x="80" y="82" text-anchor="middle" style="font-size:28px;font-weight:700;fill:var(--ink)">' + (hasInc ? rate.toFixed(0) + '%' : '—') + '</text>' +
+    '<text x="80" y="102" text-anchor="middle" style="font-size:12px;fill:var(--muted)">ahorrado</text></svg>';
+  return '<section class="card" aria-label="Tasa de ahorro"><div class="card-head"><div><h2>Tasa de ahorro</h2><div class="sub">Lo que te queda de tus ingresos este mes</div></div></div>' +
+    '<div class="donut-wrap"><div class="ring">' + ring + '</div><div class="cat-list">' +
+    '<div class="sub" style="margin:0">Ingresos</div><div class="kpi-value" style="margin:0;font-size:20px">' + fmt(st.inc) + '</div>' +
+    '<div class="sub" style="margin:10px 0 0">Gastos</div><div class="kpi-value" style="margin:0;font-size:20px">' + fmt(st.exp) + '</div>' +
+    '<div class="sub" style="margin:10px 0 0">Te queda</div><div class="kpi-value" style="margin:0;font-size:20px;color:' + (sav >= 0 ? 'var(--good-text)' : 'var(--bad-text)') + '">' + (sav < 0 ? '− ' : '') + fmt(Math.abs(sav)) + '</div>' +
+    '</div></div></section>';
+}
+
+// Avance de cada tope: cuánto llevas gastado en cada categoría con tope definido.
+function renderCapBars(rows) {
+  if (!rows.length) return '';
+  const items = rows.map((r) => {
+    const p = r.pct === 999 ? 100 : Math.min(100, r.pct);
+    return '<div class="cap-bar-row"><div class="cap-bar-top"><span class="sw" style="background:' + col(r.cat) + '"></span>' +
+      '<span class="name">' + esc(r.cat.name) + '</span><span class="cap-bar-amt">' + fmt(r.spent) + ' / ' + fmt(r.cap) + '</span></div>' +
+      '<div class="track"><div class="bar ' + r.status + '" style="width:' + p.toFixed(1) + '%"></div></div></div>';
+  }).join('');
+  return '<section class="card" aria-label="Topes por categoría"><div class="card-head"><div><h2>Avance de topes</h2><div class="sub">Cuánto llevas gastado frente a cada tope</div></div></div>' + items + '</section>';
+}
+
+// Uso de cada tarjeta: deuda frente a la línea de crédito. Menos de 30% es lo recomendable.
+function renderCardUsage() {
+  const cards = db.accounts.filter((a) => a.kind === 'tarjeta');
+  if (!cards.length) return '';
+  const items = cards.map((c) => {
+    const hasLimit = c.limit > 0;
+    const pct = hasLimit ? (c.debt / c.limit) * 100 : 0;
+    const status = !hasLimit ? 'none' : pct > 60 ? 'crit' : pct >= 30 ? 'warn' : 'good';
+    return '<div class="cap-bar-row"><div class="cap-bar-top"><span class="name">' + esc(c.name) + '</span>' +
+      '<span class="cap-bar-amt">' + fmt(c.debt) + (hasLimit ? ' / ' + fmt(c.limit) : '') + '</span></div>' +
+      (hasLimit
+        ? '<div class="track"><div class="bar ' + status + '" style="width:' + Math.min(100, pct).toFixed(1) + '%"></div></div>' +
+          '<div class="sub" style="margin:0">' + pct.toFixed(0) + '% usado · ' + fmt(Math.max(0, c.limit - c.debt)) + ' disponible</div>'
+        : '<div class="sub" style="margin:0">Agrega la línea de crédito en la tarjeta para ver el uso</div>') + '</div>';
+  }).join('');
+  return '<section class="card" aria-label="Uso de tarjetas"><div class="card-head"><div><h2>Uso de tarjetas</h2>' +
+    '<div class="sub">Lo que debes frente a tu línea de crédito. Menos de 30% es lo recomendable.</div></div></div>' + items + '</section>';
+}
+
+// Gastos hormiga: compras pequeñas y frecuentes que suman mucho al final del mes.
+const SMALL_TX = 20;
+function renderSmallSpend(key, st) {
+  const small = db.txs.filter((t) => t.type === 'gasto' && t.date.slice(0, 7) === key && t.amount < SMALL_TX);
+  const total = small.reduce((a, t) => a + t.amount, 0);
+  const share = st.exp ? (total / st.exp) * 100 : 0;
+  const byCat = {};
+  for (const t of small) { const id = cats().some((c) => c.id === t.cat) ? t.cat : 'otr'; byCat[id] = (byCat[id] || 0) + t.amount; }
+  const top = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]).slice(0, 3);
+  const rows = top.map((id) => {
+    const c = catById(id);
+    return '<div class="cap-bar-row"><div class="cap-bar-top"><span class="sw" style="background:' + col(c) + '"></span>' +
+      '<span class="name">' + esc(c.name) + '</span><span class="cap-bar-amt">' + fmt(byCat[id]) + '</span></div>' +
+      '<div class="track"><div class="bar goal" style="width:' + ((byCat[id] / total) * 100).toFixed(1) + '%"></div></div></div>';
+  }).join('');
+  return '<section class="card" aria-label="Gastos hormiga"><div class="card-head"><div><h2>Gastos hormiga</h2>' +
+    '<div class="sub">Compras menores a ' + fmt(SMALL_TX) + ' · ' + small.length + (small.length === 1 ? ' compra' : ' compras') + '</div></div></div>' +
+    (small.length
+      ? '<div class="kpi-value">' + fmt(total) + '</div><div class="sub" style="margin:0 0 4px">' + share.toFixed(1) + '% de tus gastos del mes</div>' + rows
+      : '<div class="dl good">Este mes no hay compras pequeñas registradas</div>') + '</section>';
 }
 
 // Cuentas (saldo a favor) y tarjetas de crédito (deuda). Los movimientos con cuenta asignada las actualizan solos.
