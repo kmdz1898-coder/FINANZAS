@@ -338,6 +338,20 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.45); }
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--grad);
 }
 
+/* Proyección dentro de la tarjeta de gasto acumulado */
+.proj-foot { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--track); }
+.proj-value { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.proj-value span { font-size: 13px; color: var(--ink-2); }
+.proj-value strong { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.proj-foot .proj-track { margin-top: 8px; }
+
+/* Dos tarjetas lado a lado */
+.cards.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cards.pair .donut-wrap { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+.cards.pair .ring { width: 130px; height: 130px; }
+.cards.pair .ring svg { width: 130px; height: 130px; }
+.cards.pair .kpi-value { font-size: 17px; }
+
 /* Anillo de ahorro y avance de topes */
 .ring { position: relative; width: 160px; height: 160px; margin: 0 auto; flex: none; }
 .ring svg { width: 160px; height: 160px; display: block; }

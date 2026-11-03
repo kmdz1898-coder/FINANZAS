@@ -283,6 +283,8 @@ function smooth(pts) {
 }
 const areaOf = (pts, line, base) => line + ' L ' + pts[pts.length - 1][0].toFixed(1) + ' ' + base + ' L ' + pts[0][0].toFixed(1) + ' ' + base + ' Z';
 const chartWidth = () => Math.max(260, Math.min(720, document.documentElement.clientWidth) - 32 - 34);
+// Ancho para dos tarjetas lado a lado.
+const pairWidth = () => Math.max(130, Math.floor((Math.min(720, document.documentElement.clientWidth) - 32 - 12) / 2) - 24);
 
 // ---------- Vistas ----------
 function monthBar() {
@@ -346,7 +348,7 @@ function renderInicio() {
       : exceeded ? '<div class="dl bad">' + exceeded + (exceeded === 1 ? ' categoría excedida' : ' categorías excedidas') + '</div>'
         : '<div class="dl good">Todas dentro del tope</div>', true);
   html += '</div>';
-  html += renderAccounts() + renderCardUsage() + renderTrendChart(key) + renderDonut(key, st) + renderCumChart(key, rows) + renderProjection(key, st, rows) + renderWeeks(key) + renderRing(key, st) + renderCapBars(rows) + renderSmallSpend(key, st) + renderGoals() + renderLoans();
+  html += renderAccounts() + renderCardUsage() + renderTrendChart(key) + renderDonut(key, st) + renderCumChart(key, rows) + '<div class="cards pair">' + renderWeeks(key) + renderRing(key, st) + '</div>' + renderCapBars(rows) + renderSmallSpend(key, st) + renderGoals() + renderLoans();
   html += '</div>';
   return html;
 }
@@ -434,6 +436,8 @@ function renderCumChart(key, capRowsWith) {
   const days = daysIn(key);
   const now = currentMonth();
   const elapsed = key < now ? days : key === now ? Number(todayISO().slice(8, 10)) : 0;
+  const pj = projectMonth(key);
+  const proj = pj ? pj.proj : null;
   const daily = new Array(days).fill(0);
   for (const t of db.txs) if (t.type === 'gasto' && t.date.slice(0, 7) === key) daily[Number(t.date.slice(8, 10)) - 1] += t.amount;
   const cum = [];
@@ -443,7 +447,7 @@ function renderCumChart(key, capRowsWith) {
   const hasCap = capRowsWith.length > 0;
   const W = chartWidth(), H = 190, L = 36, R = 10, T = 14, B = 26;
   const pw = W - L - R, ph = H - T - B, base = T + ph;
-  const ymax = niceCeil(Math.max(run, hasCap ? capTotal : 0, 1) * 1.08);
+  const ymax = niceCeil(Math.max(run, hasCap ? capTotal : 0, proj || 0, 1) * 1.08);
   const X = (d) => L + (d * pw) / (days - 1);
   const Y = (v) => T + ph - (v / ymax) * ph;
   const pts = cum.map((v, d) => [X(d), Y(v)]);
@@ -483,22 +487,30 @@ function renderCumChart(key, capRowsWith) {
     '<div class="chart" data-chart="cum"><div class="tip" hidden></div>' +
     '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Gasto acumulado por día">' + g +
     (pts.length ? '<path d="' + areaOf(pts, line, base) + '" fill="' + c1 + '" fill-opacity="0.08"></path><path class="ln" d="' + line + '" stroke="' + c1 + '"></path>' : '') +
+    (pj && pts.length ? '<path d="M ' + pts[pts.length - 1][0] + ' ' + pts[pts.length - 1][1] + ' L ' + X(days - 1) + ' ' + Y(proj) + '" fill="none" stroke="' + c1 + '" stroke-width="2" stroke-dasharray="5 4" opacity="0.7"></path>' +
+      '<circle cx="' + X(days - 1) + '" cy="' + Y(proj) + '" r="3.5" fill="var(--surface)" stroke="' + c1 + '" stroke-width="2"></circle>' : '') +
     lastDot +
     '<line class="cross" x1="0" x2="0" y1="' + T + '" y2="' + base + '"></line>' +
     '<circle class="hdot" r="5" fill="' + c1 + '" stroke="var(--surface)" stroke-width="2"></circle>' +
-    '</svg></div></section>';
+    '</svg></div>' + (pj ? renderProjection(pj, capRowsWith) : '') + '</section>';
 }
 
 // Proyección del gasto del mes actual: lo gastado + fijos pendientes + ritmo diario de los gastos variables.
-function renderProjection(key, st, rows) {
-  if (key !== currentMonth()) return '';
+function projectMonth(key) {
+  if (key !== currentMonth()) return null;
+  const st = monthStats(key);
   const elapsed = Number(todayISO().slice(8, 10));
   const remaining = daysIn(key) - elapsed;
   const fixedPaid = db.txs.filter((t) => t.type === 'gasto' && t.fixedId && t.date.slice(0, 7) === key).reduce((a, t) => a + t.amount, 0);
   const fixedPending = db.fixed.filter((f) => f.type === 'gasto' && !fixedStatus(f, key).done).reduce((a, f) => a + f.amount, 0);
   const daily = (st.exp - fixedPaid) / elapsed;
   const restVar = daily * remaining;
-  const proj = st.exp + fixedPending + restVar;
+  return { st, remaining, fixedPending, daily, restVar, proj: st.exp + fixedPending + restVar };
+}
+
+// Resumen de la proyección, dentro de la tarjeta de gasto acumulado.
+function renderProjection(pj, rows) {
+  const { st, remaining, fixedPending, daily, restVar, proj } = pj;
   const hasCap = rows.length > 0;
   const capTotal = rows.reduce((a, r) => a + r.cap, 0);
   const max = Math.max(proj, hasCap ? capTotal : 0, 1);
@@ -509,16 +521,16 @@ function renderProjection(key, st, rows) {
     : over ? '<div class="dl bad">Superaría los topes por ' + fmt(diff) + '</div>'
       : '<div class="dl good">Dentro de los topes, con ' + fmt(diff) + ' de holgura</div>';
   const saving = st.inc > 0 ? '<div class="dl ' + (st.inc - proj >= 0 ? 'good' : 'bad') + '">Ahorro proyectado ' + fmt(st.inc - proj) + '</div>' : '';
-  return '<section class="card wide" aria-label="Proyección del gasto del mes"><div class="card-head"><div><h2>Proyección del gasto</h2>' +
-    '<div class="sub">Gastado ' + fmt(st.exp) + ' + fijos pendientes ' + fmt(fixedPending) + ' + ritmo de ' + fmt(daily) + ' por día × ' + remaining + (remaining === 1 ? ' día' : ' días') + '</div></div></div>' +
-    '<div class="kpi-value">' + fmt(proj) + '</div>' +
+  return '<div class="proj-foot">' +
+    '<div class="sub" style="margin:0">Gastado ' + fmt(st.exp) + ' + fijos pendientes ' + fmt(fixedPending) + ' + ritmo de ' + fmt(daily) + ' por día × ' + remaining + (remaining === 1 ? ' día' : ' días') + '</div>' +
+    '<div class="proj-value"><span>Proyección al cierre</span><strong>' + fmt(proj) + '</strong></div>' +
     '<div class="proj-track" role="img" aria-label="Gastado, proyectado y topes">' +
     '<span style="width:' + w(st.exp) + ';background:var(--grad)"></span>' +
     '<span style="width:' + w(fixedPending) + ';background:var(--accent);opacity:.55"></span>' +
     '<span style="width:' + w(restVar) + ';background:var(--accent);opacity:.25"></span>' +
     (hasCap ? '<i class="proj-cap" style="left:' + w(capTotal) + '"></i>' : '') + '</div>' +
     '<div class="legend" style="margin-top:8px"><span><i style="background:var(--grad)"></i>Gastado</span><span><i style="background:var(--accent);opacity:.55"></i>Fijos pendientes</span><span><i style="background:var(--accent);opacity:.25"></i>Ritmo restante</span>' + (hasCap ? '<span><i class="dash"></i>Topes ' + fmt(capTotal) + '</span>' : '') + '</div>' +
-    verdict + saving + '</section>';
+    verdict + saving + '</div>';
 }
 
 // Gasto por semana del mes: barras por bloque de 7 días.
@@ -528,7 +540,7 @@ function renderWeeks(key) {
   for (const t of db.txs) if (t.type === 'gasto' && t.date.slice(0, 7) === key) daily[Number(t.date.slice(8, 10)) - 1] += t.amount;
   const ranges = [[1, 7], [8, 14], [15, 21], [22, days]];
   const vals = ranges.map(([a, b]) => { let s = 0; for (let d = a; d <= b; d++) s += daily[d - 1]; return s; });
-  const W = chartWidth(), H = 190, L = 12, R = 12, T = 26, B = 28;
+  const W = pairWidth(), H = 170, L = 8, R = 8, T = 24, B = 26;
   const pw = W - L - R, ph = H - T - B, base = T + ph;
   const ymax = niceCeil(Math.max(1, ...vals) * 1.15);
   const slot = pw / ranges.length, bw = Math.min(64, slot * 0.56);
@@ -539,7 +551,7 @@ function renderWeeks(key) {
     const x = L + i * slot + (slot - bw) / 2, cx = (x + bw / 2).toFixed(1), y = (base - h).toFixed(1);
     g += '<rect x="' + x.toFixed(1) + '" y="' + y + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="8" fill="' + c + '" opacity="' + (v ? 1 : 0.18) + '"></rect>' +
       '<text x="' + cx + '" y="' + (base - h - 6).toFixed(1) + '" text-anchor="middle" style="font-size:12px;font-weight:650;fill:var(--ink);font-variant-numeric:tabular-nums">' + (v ? kfmt(v) : '0') + '</text>' +
-      '<text class="xl" x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle">' + (a === b ? a : a + '–' + b) + '</text>';
+      '<text class="xl" x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle">S' + (i + 1) + '</text>';
   });
   const top = vals.indexOf(Math.max(...vals));
   const topLabel = ranges[top][0] + '–' + ranges[top][1];
