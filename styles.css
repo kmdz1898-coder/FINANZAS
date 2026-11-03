@@ -345,16 +345,25 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.45); }
 .proj-value strong { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .proj-foot .proj-track { margin-top: 8px; }
 
-/* Dos tarjetas lado a lado */
-.cards.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.cards.pair .donut-wrap { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
-.cards.pair .ring { width: 130px; height: 130px; }
-.cards.pair .ring svg { width: 130px; height: 130px; }
-.cards.pair .kpi-value { font-size: 17px; }
-
 /* Anillo de ahorro y avance de topes */
-.ring { position: relative; width: 160px; height: 160px; margin: 0 auto; flex: none; }
-.ring svg { width: 160px; height: 160px; display: block; }
+.ring { position: relative; width: 140px; height: 140px; margin: 0; flex: none; }
+.ring svg { width: 140px; height: 140px; display: block; }
+.ring-stat { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ring-stat + .ring-stat { margin-top: 8px; }
+.ring-stat span { font-size: 12px; color: var(--ink-2); }
+.ring-stat b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ring-stat b.pos { color: var(--good-text); }
+.ring-stat b.neg { color: var(--bad-text); }
+
+/* Dos tarjetas lado a lado: dona pequeña con los datos al costado */
+.cards.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cards.pair .donut-wrap { gap: 8px; }
+.cards.pair .ring { width: 64px; height: 64px; }
+.cards.pair .ring svg { width: 64px; height: 64px; }
+.cards.pair .ring-sub { display: none; }
+.cards.pair .ring-stat span { font-size: 10px; }
+.cards.pair .ring-stat b { font-size: 12.5px; }
+.cards.pair .ring-stat + .ring-stat { margin-top: 5px; }
 .cap-bar-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--track); }
 .cap-bar-row:first-of-type { border-top: 0; }
 .cap-bar-top { display: flex; align-items: center; gap: 8px; font-size: 14px; }

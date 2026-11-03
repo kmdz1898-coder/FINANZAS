@@ -285,7 +285,6 @@ const areaOf = (pts, line, base) => line + ' L ' + pts[pts.length - 1][0].toFixe
 const chartWidth = () => Math.max(260, Math.min(720, document.documentElement.clientWidth) - 32 - 34);
 // Ancho para dos tarjetas lado a lado.
 const pairWidth = () => Math.max(130, Math.floor((Math.min(720, document.documentElement.clientWidth) - 32 - 12) / 2) - 24);
-
 // ---------- Vistas ----------
 function monthBar() {
   const isNow = ui.month === currentMonth();
@@ -540,10 +539,10 @@ function renderWeeks(key) {
   for (const t of db.txs) if (t.type === 'gasto' && t.date.slice(0, 7) === key) daily[Number(t.date.slice(8, 10)) - 1] += t.amount;
   const ranges = [[1, 7], [8, 14], [15, 21], [22, days]];
   const vals = ranges.map(([a, b]) => { let s = 0; for (let d = a; d <= b; d++) s += daily[d - 1]; return s; });
-  const W = pairWidth(), H = 170, L = 8, R = 8, T = 24, B = 26;
+  const W = pairWidth(), H = 170, L = 6, R = 6, T = 24, B = 26;
   const pw = W - L - R, ph = H - T - B, base = T + ph;
   const ymax = niceCeil(Math.max(1, ...vals) * 1.15);
-  const slot = pw / ranges.length, bw = Math.min(64, slot * 0.56);
+  const slot = pw / ranges.length, bw = Math.min(64, slot * 0.8);
   const c = col(SERIES.exp);
   let g = '';
   ranges.forEach(([a, b], i) => {
@@ -572,12 +571,12 @@ function renderRing(key, st) {
     '<circle cx="80" cy="80" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="18"></circle>' +
     (rate > 0 ? '<circle cx="80" cy="80" r="' + r + '" fill="none" stroke="url(#ring-grad)" stroke-width="18" stroke-linecap="round" stroke-dasharray="' + (C * rate / 100).toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 80 80)"></circle>' : '') +
     '<text x="80" y="82" text-anchor="middle" style="font-size:28px;font-weight:700;fill:var(--ink)">' + (hasInc ? rate.toFixed(0) + '%' : '—') + '</text>' +
-    '<text x="80" y="102" text-anchor="middle" style="font-size:12px;fill:var(--muted)">ahorrado</text></svg>';
+    '<text class="ring-sub" x="80" y="102" text-anchor="middle" style="font-size:12px;fill:var(--muted)">ahorrado</text></svg>';
   return '<section class="card" aria-label="Tasa de ahorro"><div class="card-head"><div><h2>Tasa de ahorro</h2><div class="sub">Lo que te queda de tus ingresos este mes</div></div></div>' +
     '<div class="donut-wrap"><div class="ring">' + ring + '</div><div class="cat-list">' +
-    '<div class="sub" style="margin:0">Ingresos</div><div class="kpi-value" style="margin:0;font-size:20px">' + fmt(st.inc) + '</div>' +
-    '<div class="sub" style="margin:10px 0 0">Gastos</div><div class="kpi-value" style="margin:0;font-size:20px">' + fmt(st.exp) + '</div>' +
-    '<div class="sub" style="margin:10px 0 0">Te queda</div><div class="kpi-value" style="margin:0;font-size:20px;color:' + (sav >= 0 ? 'var(--good-text)' : 'var(--bad-text)') + '">' + (sav < 0 ? '− ' : '') + fmt(Math.abs(sav)) + '</div>' +
+    '<div class="ring-stat"><span>Ingresos</span><b>' + fmt(st.inc) + '</b></div>' +
+    '<div class="ring-stat"><span>Gastos</span><b>' + fmt(st.exp) + '</b></div>' +
+    '<div class="ring-stat"><span>Te queda</span><b class="' + (sav >= 0 ? 'pos' : 'neg') + '">' + (sav < 0 ? '− ' : '') + fmt(Math.abs(sav)) + '</b></div>' +
     '</div></div></section>';
 }
 
